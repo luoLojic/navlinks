@@ -8,7 +8,12 @@
     "dev:all": "concurrently \"npm run start\" \"npm run dev\"",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "docker:build:amd64": "docker buildx build --platform linux/amd64 -t navlink-local:amd64 --load ."
+  },
+  "engines": {
+    "node": "^18.0.0 || ^20.0.0 || >=22.0.0",
+    "npm": ">=9"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

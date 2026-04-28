@@ -7,14 +7,27 @@ NavLink 是一个自托管的多模块导航与运维平台，当前包含导航
 
 ### 1.1 环境要求
 
-- Node.js 20+
-- npm 10+
+- Node.js `18` / `20` / `22`
+- npm `9+`
 - Linux / macOS / WSL2 均可
 - 如需使用 Docker 管理功能，宿主机需要可访问 Docker Engine
+
+说明：
+
+- 当前依赖链与 `Vite 6` 一致，兼容 `Node 18 / 20 / 22`
+- 默认推荐使用 `Node 20 LTS` 或 `Node 22 LTS`
+- 仓库附带 `.nvmrc`，默认指向推荐的 `Node 20`
 
 ### 1.2 安装依赖
 
 ```bash
+npm install
+```
+
+弱网或高延迟环境下，项目根目录内置了 `.npmrc` 重试配置。如果你需要临时切换公共镜像源，也可以在安装前显式指定：
+
+```bash
+npm config set registry https://registry.npmmirror.com
 npm install
 ```
 
@@ -60,7 +73,13 @@ npm run start
 | `ADMIN_PASSWORD` | 管理员初始密码，建议自行设置 | `admin` |
 | `DB_PATH` | SQLite 数据库文件路径 | `data/navlink.db` |
 
-### 1.6 数据目录
+### 1.6 网络兼容性说明
+
+- 根目录 `.npmrc` 已启用安装重试、超时延长和离线优先策略
+- `Dockerfile` 支持通过构建参数切换 npm registry、Alpine 软件源和代理
+- 默认不再把任何特定镜像源硬编码进仓库，便于在不同国家、内网、代理和 CI 环境复用
+
+### 1.7 数据目录
 
 运行期数据默认位于 `data/`：
 
@@ -91,7 +110,40 @@ docker build -t navlink-local:latest .
 docker build --build-arg NODE_IMAGE=node:20-alpine -t navlink-local:latest .
 ```
 
-### 2.2 启动容器
+如需在弱网、代理或企业内网环境构建，可以按需传入公共镜像源或代理参数：
+
+```bash
+docker build \
+  --build-arg NPM_REGISTRY=https://registry.npmmirror.com \
+  --build-arg APK_REPOSITORY=https://mirrors.aliyun.com/alpine \
+  --build-arg HTTP_PROXY=http://your-proxy:port \
+  --build-arg HTTPS_PROXY=http://your-proxy:port \
+  -t navlink-local:latest .
+```
+
+可用构建参数：
+
+- `NODE_IMAGE`：覆盖基础 Node 镜像
+- `NPM_REGISTRY`：覆盖 npm registry
+- `APK_REPOSITORY`：覆盖 Alpine 软件源
+- `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`：构建期代理
+- `NPM_FETCH_RETRIES` / `NPM_FETCH_RETRY_MINTIMEOUT` / `NPM_FETCH_RETRY_MAXTIMEOUT` / `NPM_FETCH_TIMEOUT`：安装重试与超时
+
+### 2.2 构建 x86 (`linux/amd64`) 镜像
+
+项目已经补充了 amd64 构建脚本，适合在多平台主机或 CI 中显式产出 x86 镜像：
+
+```bash
+npm run docker:build:amd64
+```
+
+等价命令：
+
+```bash
+docker buildx build --platform linux/amd64 -t navlink-local:amd64 --load .
+```
+
+### 2.3 启动容器
 
 ```bash
 mkdir -p ./data
@@ -119,7 +171,7 @@ docker run -d \
 - `/var/run/docker.sock:/var/run/docker.sock` 用于启用本机 Docker 管理能力
 - 如果你只管理远程 Docker 主机，可以按需移除 `docker.sock` 挂载
 
-### 2.3 使用 docker compose
+### 2.4 使用 docker compose
 
 仓库内提供了 `docker-compose.yml`。如果你希望直接通过源码构建并启动，可以将服务切换为 `build: .`：
 
@@ -147,7 +199,7 @@ services:
 docker compose up -d --build
 ```
 
-### 2.4 升级镜像
+### 2.5 升级镜像
 
 当源码有更新时，重新构建并重启容器即可：
 
@@ -262,3 +314,13 @@ navlinks/
 - `server/routes/vps.js`：VPS 分组、主机、片段库接口
 - `server/services/socketService.js`：Web SSH 与实时监控 Socket 服务
 - `server/database/schema.sql`：SQLite 表结构定义
+
+## 5. 许可证
+
+项目当前附带 [LICENSE](/opt/navlinks/LICENSE)，采用 `PolyForm Noncommercial 1.0.0`。
+
+说明：
+
+- 该协议禁止商用
+- 允许个人学习、研究、测试、公益和非商业组织使用
+- 严格说它属于 `source-available` 协议，不属于 OSI 定义的开源许可证

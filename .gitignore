@@ -51,3 +51,6 @@ docs/
 debug_root.log
 docker_implementation_report.md
 docker应用需求计划
+.codex
+backups/
+README-yuan.md
