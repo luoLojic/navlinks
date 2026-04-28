@@ -1,9 +1,94 @@
 import { Server } from 'socket.io';
 import { Client } from 'ssh2';
-import { decrypt } from '../utils/crypto.js';
 import { getServerById, updateServer } from './vpsService.js';
 
 let io;
+const activeServerConnections = new Map();
+
+const markServerOnline = async (serverId) => {
+    const nextCount = (activeServerConnections.get(serverId) || 0) + 1;
+    activeServerConnections.set(serverId, nextCount);
+
+    if (nextCount === 1) {
+        await updateServer(serverId, { status: 'online' });
+    }
+};
+
+const markServerOffline = async (serverId) => {
+    if (!serverId) return;
+
+    const currentCount = activeServerConnections.get(serverId) || 0;
+
+    if (currentCount <= 1) {
+        activeServerConnections.delete(serverId);
+        await updateServer(serverId, { status: 'offline' });
+        return;
+    }
+
+    activeServerConnections.set(serverId, currentCount - 1);
+};
+
+const refreshStaticServerInfo = (sshClient, serverId) => {
+    const infoCmd = 'cat /etc/os-release; echo "|||"; lscpu; echo "|||"; free -m; echo "|||"; df -h /';
+
+    sshClient.exec(infoCmd, (err, stream) => {
+        if (err) return;
+
+        let output = '';
+        stream.on('data', (data) => {
+            output += data;
+        });
+        stream.on('close', async () => {
+            try {
+                const parts = output.split('|||').map((item) => item.trim());
+                if (parts.length < 4) return;
+
+                const [osRaw, cpuRaw, memRaw, diskRaw] = parts;
+
+                let osInfo = 'Linux';
+                const prettyName = osRaw.match(/PRETTY_NAME="([^"]+)"/);
+                if (prettyName) {
+                    osInfo = prettyName[1];
+                } else {
+                    const name = osRaw.match(/NAME="([^"]+)"/);
+                    if (name) osInfo = name[1];
+                }
+
+                let cpuModel = 'Unknown';
+                let cpuCores = '1';
+                const modelMatch = cpuRaw.match(/Model name:\s+(.+)/);
+                if (modelMatch) cpuModel = modelMatch[1];
+                const cpuMatch = cpuRaw.match(/CPU\(s\):\s+(\d+)/);
+                if (cpuMatch) cpuCores = cpuMatch[1];
+                const cpuInfoStr = `${cpuModel} (${cpuCores} Cores)`;
+
+                let memTotal = '0';
+                let swapTotal = '0';
+                const memMatch = memRaw.match(/Mem:\s+(\d+)/);
+                if (memMatch) memTotal = memMatch[1];
+                const swapMatch = memRaw.match(/Swap:\s+(\d+)/);
+                if (swapMatch) swapTotal = swapMatch[1];
+                const memInfoStr = `${memTotal} MB (Swap: ${swapTotal} MB)`;
+
+                let diskTotal = 'Unknown';
+                const diskLines = diskRaw.split('\n');
+                if (diskLines.length > 1) {
+                    const diskInfo = diskLines[1].split(/\s+/);
+                    if (diskInfo.length >= 2) diskTotal = diskInfo[1];
+                }
+
+                await updateServer(serverId, {
+                    os_info: osInfo,
+                    cpu_info: cpuInfoStr,
+                    mem_info: memInfoStr,
+                    disk_info: diskTotal
+                });
+            } catch (error) {
+                console.error('Failed to parse static info:', error);
+            }
+        });
+    });
+};
 
 export const initSocket = (httpServer) => {
     io = new Server(httpServer, {
@@ -19,9 +104,24 @@ export const initSocket = (httpServer) => {
         let sshClient = null;
         let sshStream = null;
         let currentServerId = null;
+        let hasActiveServerConnection = false;
+
+        const activateServerConnection = async () => {
+            if (!currentServerId || hasActiveServerConnection) return;
+
+            hasActiveServerConnection = true;
+            await markServerOnline(currentServerId);
+        };
+
+        const releaseServerConnection = async () => {
+            if (!currentServerId || !hasActiveServerConnection) return;
+
+            hasActiveServerConnection = false;
+            await markServerOffline(currentServerId);
+        };
 
         // Handle SSH Connection Request
-        socket.on('ssh:connect', async ({ serverId, cols = 80, rows = 24 }) => {
+        socket.on('ssh:connect', async ({ serverId, cols = 80, rows = 24, openShell = true }) => {
             try {
                 currentServerId = serverId;
                 const server = await getServerById(serverId, true); // Get with secrets
@@ -34,74 +134,19 @@ export const initSocket = (httpServer) => {
 
                 const setupClientListeners = () => {
                     sshClient.on('ready', async () => {
-                        // socket.emit('ssh:ready'); // Moved to after shell is ready
-                        // await updateServer(serverId, { status: 'online' }); // Moved to after shell is ready
+                        refreshStaticServerInfo(sshClient, serverId);
 
-                        // Fetch Detailed System Info (OS, CPU, RAM, Disk)
-                        const infoCmd = 'cat /etc/os-release; echo "|||"; lscpu; echo "|||"; free -m; echo "|||"; df -h /';
-                        sshClient.exec(infoCmd, (err, stream) => {
-                            if (err) return;
-                            let output = '';
-                            stream.on('data', (data) => output += data);
-                            stream.on('close', async () => {
-                                try {
-                                    const parts = output.split('|||').map(s => s.trim());
-                                    if (parts.length < 4) return;
-
-                                    const [osRaw, cpuRaw, memRaw, diskRaw] = parts;
-
-                                    // 1. Parse OS
-                                    let osInfo = 'Linux';
-                                    const prettyName = osRaw.match(/PRETTY_NAME="([^"]+)"/);
-                                    if (prettyName) osInfo = prettyName[1];
-                                    else {
-                                        const name = osRaw.match(/NAME="([^"]+)"/);
-                                        if (name) osInfo = name[1];
-                                    }
-
-                                    // 2. Parse CPU
-                                    let cpuModel = 'Unknown';
-                                    let cpuCores = '1';
-                                    const modelMatch = cpuRaw.match(/Model name:\s+(.+)/);
-                                    if (modelMatch) cpuModel = modelMatch[1];
-                                    const cpuMatch = cpuRaw.match(/CPU\(s\):\s+(\d+)/);
-                                    if (cpuMatch) cpuCores = cpuMatch[1];
-                                    const cpuInfoStr = `${cpuModel} (${cpuCores} Cores)`;
-
-                                    // 3. Parse Memory (MB)
-                                    let memTotal = '0';
-                                    let swapTotal = '0';
-                                    const memMatch = memRaw.match(/Mem:\s+(\d+)/);
-                                    if (memMatch) memTotal = memMatch[1];
-                                    const swapMatch = memRaw.match(/Swap:\s+(\d+)/);
-                                    if (swapMatch) swapTotal = swapMatch[1];
-                                    const memInfoStr = `${memTotal} MB (Swap: ${swapTotal} MB)`;
-
-                                    // 4. Parse Disk
-                                    let diskTotal = 'Unknown';
-                                    const diskLines = diskRaw.split('\n');
-                                    if (diskLines.length > 1) {
-                                        const diskInfo = diskLines[1].split(/\s+/);
-                                        if (diskInfo.length >= 2) diskTotal = diskInfo[1];
-                                    }
-
-                                    await updateServer(serverId, {
-                                        os_info: osInfo,
-                                        cpu_info: cpuInfoStr,
-                                        mem_info: memInfoStr,
-                                        disk_info: diskTotal
-                                    });
-                                } catch (e) {
-                                    console.error('Failed to parse static info:', e);
-                                }
-                            });
-                        });
+                        if (!openShell) {
+                            await activateServerConnection();
+                            socket.emit('ssh:ready');
+                            return;
+                        }
 
                         sshClient.shell({
                             term: 'xterm-256color',
                             cols,
                             rows,
-                        }, (err, stream) => {
+                        }, async (err, stream) => {
                             if (err) {
                                 socket.emit('ssh:error', 'Shell error: ' + err.message);
                                 return;
@@ -109,11 +154,9 @@ export const initSocket = (httpServer) => {
 
                             sshStream = stream;
 
-                            // Notify frontend that SSH (and Shell) is ready
+                            await activateServerConnection();
                             socket.emit('ssh:ready');
-                            updateServer(serverId, { status: 'online' });
 
-                            // Data from Server -> Client
                             stream.on('data', (data) => {
                                 socket.emit('ssh:data', data.toString('utf-8'));
                             });
@@ -123,7 +166,6 @@ export const initSocket = (httpServer) => {
                                 sshClient.end();
                             });
 
-                            // Data from Client -> Server
                             socket.on('ssh:data', (data) => {
                                 if (stream.writable) {
                                     stream.write(data);
@@ -150,16 +192,14 @@ export const initSocket = (httpServer) => {
                         }
 
                         socket.emit('ssh:error', 'Connection error: ' + err.message);
-                        if (currentServerId) {
+                        if (currentServerId && !hasActiveServerConnection) {
                             updateServer(currentServerId, { status: 'error' });
                         }
                     });
 
                     sshClient.on('close', () => {
                         socket.emit('ssh:close');
-                        if (currentServerId) {
-                            updateServer(currentServerId, { status: 'offline' });
-                        }
+                        releaseServerConnection();
                     });
 
                     sshClient.on('keyboard-interactive', (name, instructions, instructionsLang, prompts, finish) => {
@@ -218,10 +258,12 @@ export const initSocket = (httpServer) => {
         socket.on('monitor:start', () => {
             if (!sshClient) return;
             if (monitorInterval) clearInterval(monitorInterval);
+            prevNetStats = null;
+            prevCpu = null;
+            lastCheckTime = null;
 
             const fetchStats = () => {
-                // Lightweight commands to get system stats
-                const cmd = 'cat /proc/stat; echo "|||"; cat /proc/meminfo; echo "|||"; df -h /; echo "|||"; cat /proc/net/dev';
+                const cmd = 'cat /proc/stat; echo "|||"; cat /proc/meminfo; echo "|||"; df -k /; echo "|||"; cat /proc/net/dev';
 
                 sshClient.exec(cmd, (err, stream) => {
                     if (err) return; // Ignore errors for now
@@ -235,7 +277,6 @@ export const initSocket = (httpServer) => {
                             const [cpuRaw, memRaw, diskRaw, netRaw] = parts;
                             const now = Date.now();
 
-                            // 1. Parse CPU
                             const cpuLine = cpuRaw.split('\n').find(l => l.startsWith('cpu '));
                             let cpuUsage = 0;
                             if (cpuLine) {
@@ -253,20 +294,23 @@ export const initSocket = (httpServer) => {
                                 prevCpu = { total, idle };
                             }
 
-                            // 2. Parse Memory
                             const memTotal = parseInt(memRaw.match(/MemTotal:\s+(\d+)/)?.[1] || '0');
+                            const memAvailable = parseInt(memRaw.match(/MemAvailable:\s+(\d+)/)?.[1] || '0');
                             const memFree = parseInt(memRaw.match(/MemFree:\s+(\d+)/)?.[1] || '0');
                             const memBuffers = parseInt(memRaw.match(/Buffers:\s+(\d+)/)?.[1] || '0');
                             const memCached = parseInt(memRaw.match(/Cached:\s+(\d+)/)?.[1] || '0');
-                            const memUsed = memTotal - memFree - memBuffers - memCached;
+                            const memUsed = memAvailable > 0
+                                ? memTotal - memAvailable
+                                : memTotal - memFree - memBuffers - memCached;
+                            const memPercent = memTotal > 0 ? Math.round((memUsed / memTotal) * 100) : 0;
 
-                            // 3. Parse Disk
                             const diskLines = diskRaw.split('\n');
                             const diskInfo = diskLines.length > 1 ? diskLines[1].split(/\s+/) : [];
-                            const diskUsage = diskInfo.length >= 5 ? parseInt(diskInfo[4]) : 0;
+                            const diskTotal = diskInfo.length >= 2 ? parseInt(diskInfo[1], 10) * 1024 : 0;
+                            const diskUsed = diskInfo.length >= 3 ? parseInt(diskInfo[2], 10) * 1024 : 0;
+                            const diskAvailable = diskInfo.length >= 4 ? parseInt(diskInfo[3], 10) * 1024 : 0;
+                            const diskPercent = diskInfo.length >= 5 ? parseInt(diskInfo[4], 10) : 0;
 
-                            // 4. Parse Network
-                            // Simple sum of all interfaces (except lo)
                             let rx = 0, tx = 0;
                             netRaw.split('\n').forEach(line => {
                                 if (line.includes(':') && !line.trim().startsWith('lo:')) {
@@ -280,8 +324,8 @@ export const initSocket = (httpServer) => {
                             if (prevNetStats && lastCheckTime) {
                                 const duration = (now - lastCheckTime) / 1000;
                                 if (duration > 0) {
-                                    netSpeed.down = (rx - prevNetStats.rx) / duration;
-                                    netSpeed.up = (tx - prevNetStats.tx) / duration;
+                                    netSpeed.down = Math.max(0, (rx - prevNetStats.rx) / duration);
+                                    netSpeed.up = Math.max(0, (tx - prevNetStats.tx) / duration);
                                 }
                             }
                             prevNetStats = { rx, tx };
@@ -289,16 +333,27 @@ export const initSocket = (httpServer) => {
 
                             const statsData = {
                                 cpu: Math.round(cpuUsage),
-                                mem: { total: memTotal, used: memUsed },
-                                disk: diskUsage,
-                                net: netSpeed
+                                mem: {
+                                    total: memTotal,
+                                    used: memUsed,
+                                    percent: memPercent
+                                },
+                                disk: {
+                                    total: diskTotal,
+                                    used: diskUsed,
+                                    available: diskAvailable,
+                                    percent: diskPercent
+                                },
+                                traffic: {
+                                    down: rx,
+                                    up: tx,
+                                    total: rx + tx
+                                },
+                                net: netSpeed,
+                                updatedAt: now
                             };
 
                             socket.emit('monitor:data', statsData);
-
-                            // Optional: Update basic stats to DB occasionally? 
-                            // For now, we only update static info on connect.
-
                         } catch (e) {
                             console.error('Parse stats error:', e);
                         }
@@ -504,9 +559,7 @@ export const initSocket = (httpServer) => {
             if (sshClient) {
                 sshClient.end();
             }
-            if (currentServerId) {
-                updateServer(currentServerId, { status: 'offline' });
-            }
+            releaseServerConnection();
         });
     });
 

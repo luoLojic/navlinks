@@ -14,7 +14,6 @@ import { DataSettings } from './tabs/DataSettings';
 import { LinkHealthSettings } from './tabs/LinkHealthSettings';
 import { MediaSettings } from './tabs/MediaSettings';
 import { AppManagementSettings } from './tabs/AppManagementSettings';
-import { AIConfigSettings } from './tabs/AIConfigSettings';
 import { handleDragEnd } from './dragHandler';
 import { useDialogs } from '@/src/shared/hooks/useDialogs';
 import { ConfirmDialog } from '@/src/shared/components/common/ConfirmDialog';
@@ -26,7 +25,7 @@ interface AdminPanelProps {
 export default function AdminPanel({ onClose }: AdminPanelProps) {
     const { config, setConfig } = useConfig();
     const { confirmDialog, showConfirm, hideConfirm } = useDialogs();
-    const [activeTab, setActiveTab] = useState<'basic' | 'categories' | 'sidebar' | 'hero' | 'promo' | 'data' | 'health' | 'topnav' | 'media' | 'apps' | 'ai'>('basic');
+    const [activeTab, setActiveTab] = useState<'basic' | 'categories' | 'sidebar' | 'hero' | 'promo' | 'data' | 'health' | 'topnav' | 'media' | 'apps'>('basic');
 
     // Helper to update config deeply
     const update = (fn: (c: SiteConfig) => SiteConfig) => {
@@ -82,7 +81,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                                     { id: 'categories', icon: 'fa-solid fa-layer-group', label: '内容分类' },
                                     { id: 'sidebar', icon: 'fa-solid fa-id-card', label: '侧边栏设置' },
                                     { id: 'apps', icon: 'fa-solid fa-th-large', label: '应用管理' },
-                                    { id: 'ai', icon: 'fa-solid fa-robot', label: 'AI 配置' },
                                     { id: 'health', icon: 'fa-solid fa-heartbeat', label: '链接健康' },
                                     { id: 'media', icon: 'fa-solid fa-images', label: '资源管理' },
                                     { id: 'data', icon: 'fa-solid fa-database', label: '数据管理' },
@@ -135,7 +133,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                                         { id: 'categories', icon: 'fa-solid fa-layer-group', label: '分类' },
                                         { id: 'sidebar', icon: 'fa-solid fa-id-card', label: '侧边栏' },
                                         { id: 'apps', icon: 'fa-solid fa-th-large', label: '应用' },
-                                        { id: 'ai', icon: 'fa-solid fa-robot', label: 'AI' },
                                         { id: 'health', icon: 'fa-solid fa-heartbeat', label: '健康' },
                                         { id: 'media', icon: 'fa-solid fa-images', label: '资源' },
                                         { id: 'data', icon: 'fa-solid fa-database', label: '数据' },
@@ -167,7 +164,6 @@ export default function AdminPanel({ onClose }: AdminPanelProps) {
                                 {activeTab === 'categories' && <CategorySettings config={config} update={update} />}
                                 {activeTab === 'sidebar' && <SidebarSettings config={config} update={update} />}
                                 {activeTab === 'apps' && <AppManagementSettings />}
-                                {activeTab === 'ai' && <AIConfigSettings config={config} update={update} />}
                                 {activeTab === 'health' && <LinkHealthSettings config={config} update={update} setConfig={setConfig} />}
                                 {activeTab === 'media' && <MediaSettings config={config} update={update} />}
                                 {activeTab === 'data' && <DataSettings config={config} update={update} setConfig={setConfig} />}

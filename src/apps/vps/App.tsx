@@ -11,9 +11,10 @@ import FileManager from './components/FileManager';
 import SnippetLibrary from './components/SnippetLibrary';
 import { Socket } from 'socket.io-client';
 import ServerFormModal from './components/ServerFormModal';
-import { VpsServer, VpsGroup } from './types';
+import { ServerMonitorStats, VpsServer, VpsGroup } from './types';
 import GlobalDashboard from './components/GlobalDashboard';
 import ServerTerminalView from './components/ServerTerminalView';
+import MonitorBoard from './components/MonitorBoard';
 import { Icon } from '@/src/shared/components/common/Icon';
 import { ConfirmModal } from '@/src/shared/components/common/ConfirmModal';
 
@@ -22,7 +23,7 @@ interface Session {
     serverId: string;
     serverName: string;
     socket: Socket | null;
-    stats: any;
+    stats: ServerMonitorStats | null;
 }
 
 export default function VPSApp() {
@@ -328,6 +329,17 @@ export default function VPSApp() {
                                     onEditServer={handleEditServer}
                                     onDeleteServer={handleDeleteServer}
                                     onRefresh={fetchData}
+                                />
+                            </div>
+                        )}
+
+                        {activeView === 'monitor' && (
+                            <div className="h-full overflow-y-auto p-6 w-full">
+                                <MonitorBoard
+                                    servers={servers}
+                                    groups={groups}
+                                    onConnect={handleConnect}
+                                    onAddServer={handleAddServer}
                                 />
                             </div>
                         )}

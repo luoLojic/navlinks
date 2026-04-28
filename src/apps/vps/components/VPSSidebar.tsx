@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Icon } from '@/src/shared/components/common/Icon';
 import { VpsServer, VpsGroup } from '../types';
 
-export type VPSView = 'overview' | 'servers' | 'dashboard' | 'terminal' | 'files' | 'snippets';
+export type VPSView = 'overview' | 'monitor' | 'servers' | 'dashboard' | 'terminal' | 'files' | 'snippets';
 
 interface VPSSidebarProps {
     activeView: VPSView;
@@ -73,6 +73,7 @@ const VPSSidebar: React.FC<VPSSidebarProps> = ({
 
     const mainItems = [
         { id: 'overview', label: '总览', icon: 'fa-solid fa-gauge-high' },
+        { id: 'monitor', label: '监控', icon: 'fa-solid fa-chart-line' },
         { id: 'snippets', label: '脚本库', icon: 'fa-solid fa-code' },
     ];
 

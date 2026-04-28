@@ -42,6 +42,31 @@ export interface VpsServer {
     updated_at?: string;
 }
 
+export interface ServerMonitorStats {
+    cpu: number;
+    mem: {
+        total: number;
+        used: number;
+        percent: number;
+    };
+    disk: {
+        total: number;
+        used: number;
+        available: number;
+        percent: number;
+    };
+    traffic: {
+        down: number;
+        up: number;
+        total: number;
+    };
+    net: {
+        up: number;
+        down: number;
+    };
+    updatedAt: number;
+}
+
 export interface VpsSnippet {
     id: string;
     category: string;

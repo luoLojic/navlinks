@@ -3,3 +3,7 @@ dist
 .git
 .DS_Store
 *.log
+backups
+data
+coverage
+*.tar

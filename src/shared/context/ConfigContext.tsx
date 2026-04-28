@@ -4,6 +4,13 @@ import { DEFAULT_CONFIG } from '../constants';
 import { api, ApiError } from '../utils/api';
 import { Toast } from '../components/common/Toast';
 
+const sanitizeConfig = <T extends Record<string, any> | null>(rawConfig: T): T => {
+    if (!rawConfig || typeof rawConfig !== 'object') return rawConfig;
+
+    const { aiConfig, ...safeConfig } = rawConfig;
+    return safeConfig as T;
+};
+
 interface ConfigContextType {
     config: SiteConfig;
     isLoaded: boolean;
@@ -56,7 +63,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
             // Load config
             try {
-                const serverData = await api.getConfig();
+                const serverData = sanitizeConfig(await api.getConfig());
                 if (serverData) {
                     setConfigState((prev) => ({
                         ...DEFAULT_CONFIG,
@@ -72,12 +79,12 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                     }));
                 } else {
                     const local = localStorage.getItem('nav_site_config');
-                    if (local) setConfigState(JSON.parse(local));
+                    if (local) setConfigState(sanitizeConfig(JSON.parse(local)) as SiteConfig);
                 }
             } catch (err) {
                 console.error('Failed to load config:', err);
                 const local = localStorage.getItem('nav_site_config');
-                if (local) setConfigState(JSON.parse(local));
+                if (local) setConfigState(sanitizeConfig(JSON.parse(local)) as SiteConfig);
                 setToast({ message: 'Failed to load config from server', type: 'error' });
             } finally {
                 setIsLoaded(true);
@@ -108,9 +115,10 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const saveConfig = async (newConfig: SiteConfig) => {
         try {
-            await api.saveConfig(newConfig);
+            const safeConfig = sanitizeConfig(newConfig) as SiteConfig;
+            await api.saveConfig(safeConfig);
             // Update local storage as backup
-            localStorage.setItem('nav_site_config', JSON.stringify(newConfig));
+            localStorage.setItem('nav_site_config', JSON.stringify(safeConfig));
         } catch (err) {
             console.error('Save failed:', err);
             if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
@@ -126,7 +134,7 @@ export const ConfigProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
 
     const setConfig = (newConfig: SiteConfig | ((prev: SiteConfig) => SiteConfig)) => {
-        const finalConfig = typeof newConfig === 'function' ? newConfig(config) : newConfig;
+        const finalConfig = sanitizeConfig(typeof newConfig === 'function' ? newConfig(config) : newConfig) as SiteConfig;
         setConfigState(finalConfig);
         // Optimistic update to local storage
         localStorage.setItem('nav_site_config', JSON.stringify(finalConfig));

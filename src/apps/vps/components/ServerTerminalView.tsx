@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { Socket } from 'socket.io-client';
-import { VpsServer } from '../types';
+import { ServerMonitorStats, VpsServer } from '../types';
 import WebTerminal, { WebTerminalRef } from './WebTerminal';
 import Dashboard from './Dashboard';
 import FileManager from './FileManager';
 import SnippetLibrary from './SnippetLibrary';
 import { Icon } from '@/src/shared/components/common/Icon';
+import { formatSpeed } from '../utils/monitoring';
 
 interface ServerTerminalViewProps {
     serverId: string;
     socket: Socket | null;
     onSocketReady: (socket: Socket) => void;
     visible: boolean;
-    stats: any;
+    stats: ServerMonitorStats | null;
     onStatusChange?: (status: 'online' | 'offline') => void;
     isConnected?: boolean;
     server?: VpsServer;
@@ -98,14 +99,14 @@ export default function ServerTerminalView({
                             <span className="font-bold text-gray-700 text-sm">实时监控</span>
                             {!showMonitoring && stats && (
                                 <span className="text-xs font-mono text-gray-400 ml-2">
-                                    CPU: {stats.cpu?.usage}% | RAM: {stats.mem?.usedPercentage}%
+                                    CPU: {stats.cpu}% | RAM: {stats.mem.percent}%
                                 </span>
                             )}
                         </div>
                         <div className="flex items-center gap-2">
                             {showMonitoring && stats && (
                                 <span className="text-xs font-mono text-gray-500 mr-2">
-                                    Up: {(stats.net?.up / 1024).toFixed(1)} KB/s | Down: {(stats.net?.down / 1024).toFixed(1)} KB/s
+                                    Up: {formatSpeed(stats.net.up)} | Down: {formatSpeed(stats.net.down)}
                                 </span>
                             )}
                             <button

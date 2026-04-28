@@ -9,7 +9,6 @@ import CategorySection from './components/home/CategorySection';
 import LoginDialog from '@/src/shared/components/common/LoginDialog';
 import SearchModal from './components/common/SearchModal';
 import { Icon } from '@/src/shared/components/common/Icon';
-import { AIChatModal } from './components/ai/AIChatModal';
 
 // Lazy load AdminPanel for code splitting (reduces initial bundle by ~120KB)
 const AdminPanel = lazy(() => import('./components/admin/AdminPanel'));
@@ -24,7 +23,6 @@ function AppContent() {
     const [mobileOpen, setMobileOpen] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [showBackToTop, setShowBackToTop] = useState(false);
-    const [showAIChatModal, setShowAIChatModal] = useState(false);
 
     // Dynamic Favicon
     useEffect(() => {
@@ -196,7 +194,6 @@ function AppContent() {
                     config={config}
                     isAuthenticated={isAuthenticated}
                     onClose={() => setShowSearchModal(false)}
-                    onAIModeClick={() => setShowAIChatModal(true)}
                 />
             )}
 
@@ -230,7 +227,6 @@ function AppContent() {
                     <SearchHero
                         config={config}
                         isAuthenticated={isAuthenticated}
-                        onAIModeClick={() => setShowAIChatModal(true)}
                     />
                 </div>
             </div>
@@ -295,9 +291,6 @@ function AppContent() {
             >
                 <Icon icon="fa-solid fa-arrow-up" />
             </button>
-
-            {/* AI 对话模态框 */}
-            <AIChatModal isOpen={showAIChatModal} onClose={() => setShowAIChatModal(false)} />
         </div>
     );
 }

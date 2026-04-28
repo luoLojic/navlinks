@@ -56,11 +56,10 @@ export const DEFAULT_CONFIG: SiteConfig = {
       name: '热门',
       items: [
         { id: 'p1', title: 'Navlink', url: '#', color: '#f1404b', icon: 'fa-solid fa-gem', isAd: false },
-        { id: 'p2', title: 'AI智能写作', url: '#', color: '#8bc34a', icon: 'fa-solid fa-robot', isAd: false },
-        { id: 'p3', title: '设计素材', url: '#', color: '#ff9800', icon: 'fa-solid fa-palette', isAd: false },
-        { id: 'p4', title: '特价云服务器', url: '#', color: '#999', icon: '', isAd: true },
-        { id: 'p5', title: '专业SEO优化', url: '#', color: '#999', icon: '', isAd: true },
-        { id: 'p6', title: '高端网站建设', url: '#', color: '#999', icon: '', isAd: true },
+        { id: 'p2', title: '设计素材', url: '#', color: '#ff9800', icon: 'fa-solid fa-palette', isAd: false },
+        { id: 'p3', title: '特价云服务器', url: '#', color: '#999', icon: '', isAd: true },
+        { id: 'p4', title: '专业SEO优化', url: '#', color: '#999', icon: '', isAd: true },
+        { id: 'p5', title: '高端网站建设', url: '#', color: '#999', icon: '', isAd: true },
       ]
     },
     {

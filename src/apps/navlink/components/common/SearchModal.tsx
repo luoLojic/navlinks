@@ -7,10 +7,9 @@ interface SearchModalProps {
     config: SiteConfig;
     isAuthenticated: boolean;
     onClose: () => void;
-    onAIModeClick?: () => void;
 }
 
-export default function SearchModal({ config, isAuthenticated, onClose, onAIModeClick }: SearchModalProps) {
+export default function SearchModal({ config, isAuthenticated, onClose }: SearchModalProps) {
     // Close on ESC key
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
@@ -54,13 +53,9 @@ export default function SearchModal({ config, isAuthenticated, onClose, onAIMode
 
                 {/* Search Content */}
                 <div className="p-8 pt-12">
-                    <SearchHero 
-                        config={config} 
+                    <SearchHero
+                        config={config}
                         isAuthenticated={isAuthenticated}
-                        onAIModeClick={() => {
-                            onClose();
-                            onAIModeClick?.();
-                        }}
                     />
                 </div>
 

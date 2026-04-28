@@ -113,21 +113,6 @@ export interface ThemeConfig {
   promoSubCategoryTitleSize?: number; // Promo subcategory tab font size in px (default: 12)
 }
 
-export interface AIProvider {
-  id: string;
-  name: string;
-  apiKey: string;
-  baseUrl?: string;
-  model?: string;
-  enabled: boolean;
-}
-
-export interface AIConfig {
-  providers: AIProvider[];
-  defaultProvider?: string;
-  chatShortcut: string; // 快捷键，例如 "Ctrl+Shift+A"
-}
-
 export interface SiteConfig {
   logoUrl: string; // For top navbar
   headerQuote: string; // The quote text in the top navbar
@@ -137,7 +122,6 @@ export interface SiteConfig {
     enabled: boolean;
     time: string;
   };
-  aiConfig?: AIConfig; // AI 配置
   topNav: TopNavItem[];
   hero: {
     title: string;

@@ -16,6 +16,13 @@ const getSiteConfigDAO = () => new SiteConfigDAO();
 
 const router = express.Router();
 
+const stripAIConfig = (config) => {
+    if (!config || typeof config !== 'object') return config;
+
+    const { aiConfig, ...safeConfig } = config;
+    return safeConfig;
+};
+
 // 配置 Multer 存储
 
 
@@ -37,7 +44,7 @@ const jsonUpload = multer({
 router.get('/config', async (req, res) => {
     try {
         const config = await getSiteConfigDAO().get();
-        res.json(config || null);
+        res.json(stripAIConfig(config) || null);
     } catch (error) {
         console.error('Read config error:', error);
         res.status(500).json({ error: 'Failed to read config' });
@@ -47,7 +54,7 @@ router.get('/config', async (req, res) => {
 // API: 保存配置 (需要认证)
 router.post('/config', authenticateToken, async (req, res) => {
     try {
-        const success = await getSiteConfigDAO().save(req.body);
+        const success = await getSiteConfigDAO().save(stripAIConfig(req.body));
         if (success) {
             res.json({ success: true });
         } else {
@@ -81,7 +88,7 @@ router.post('/config/import', authenticateToken, jsonUpload.single('file'), asyn
         }
 
         // 保存到数据库
-        const success = await getSiteConfigDAO().save(config);
+        const success = await getSiteConfigDAO().save(stripAIConfig(config));
         if (success) {
             res.json({ success: true, message: 'Config imported successfully' });
         } else {
@@ -98,9 +105,10 @@ router.get('/config/export', authenticateToken, async (req, res) => {
     try {
         const data = await getSiteConfigDAO().export();
         if (data) {
+            const safeData = JSON.stringify(stripAIConfig(JSON.parse(data)), null, 2);
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Content-Disposition', `attachment; filename=navlink-config-${new Date().toISOString().split('T')[0]}.json`);
-            res.send(data);
+            res.send(safeData);
         } else {
             res.status(404).json({ error: 'No config found' });
         }
@@ -139,7 +147,7 @@ router.post('/health-check-schedule', authenticateToken, async (req, res) => {
         const { enabled, time } = req.body;
 
         // 获取当前配置
-        const config = await getSiteConfigDAO().get();
+        const config = stripAIConfig(await getSiteConfigDAO().get());
         if (!config) {
             return res.status(404).json({ error: 'Config not found' });
         }

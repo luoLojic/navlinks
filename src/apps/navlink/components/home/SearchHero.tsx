@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { SiteConfig, SearchEngine, LinkItem } from '@/src/shared/types';
+import React, { useState, useEffect, useRef } from 'react';
+import { SiteConfig, LinkItem } from '@/src/shared/types';
 import { Icon } from '@/src/shared/components/common/Icon';
 import { useDialogs } from '@/src/shared/hooks/useDialogs';
 import { AlertDialog } from '@/src/shared/components/common/AlertDialog';
@@ -19,7 +19,7 @@ const HighlightedText = ({ text, highlight }: { text: string, highlight: string 
     );
 };
 
-const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config: SiteConfig, isAuthenticated?: boolean, onAIModeClick?: () => void }) => {
+const SearchHero = ({ config, isAuthenticated = false }: { config: SiteConfig, isAuthenticated?: boolean }) => {
     const [activeEngineId, setActiveEngineId] = useState(config.searchEngines?.[0]?.id || '');
     const [keyword, setKeyword] = useState('');
     const { alertDialog, showAlert, hideAlert } = useDialogs();
@@ -159,22 +159,12 @@ const SearchHero = ({ config, isAuthenticated = false, onAIModeClick }: { config
                         onChange={(e) => setKeyword(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         onFocus={() => { if (searchResults.length > 0) setShowDropdown(true); }}
-                        className="w-full h-[54px] pl-6 pr-32 rounded-xl bg-white text-gray-700 outline-none shadow-2xl focus:ring-4 focus:ring-white/30 transition-all"
+                        className="w-full h-[54px] pl-6 pr-20 rounded-xl bg-white text-gray-700 outline-none shadow-2xl focus:ring-4 focus:ring-white/30 transition-all"
                     />
                     {/* 搜索按钮 */}
-                    <button onClick={() => handleSearch()} className="absolute right-[60px] top-1.5 bottom-1.5 w-14 text-red-500 rounded-lg transition-all flex items-center justify-center hover:bg-gray-100">
+                    <button onClick={() => handleSearch()} className="absolute right-1.5 top-1.5 bottom-1.5 w-14 text-red-500 rounded-lg transition-all flex items-center justify-center hover:bg-gray-100">
                         <Icon icon="fa-solid fa-magnifying-glass" className="text-2xl" />
                     </button>
-                    {/* AI 模式按钮 - Google 风格 */}
-                    {onAIModeClick && (
-                        <button
-                            onClick={onAIModeClick}
-                            className="absolute right-1.5 top-1.5 bottom-1.5 w-14 bg-gray-200 text-red-500 rounded-lg transition-all flex items-center justify-center hover:border-2 hover:border-red-500 hover:bg-red-50"
-                            title="AI 模式"
-                        >
-                            <Icon icon="fa-solid fa-robot" className="text-2xl" />
-                        </button>
-                    )}
 
                     {/* Live Search Dropdown Results */}
                     {showDropdown && (

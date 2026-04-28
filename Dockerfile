@@ -1,6 +1,20 @@
+ARG NODE_IMAGE=node:20-alpine
+
 # 阶段 1: 构建 React 前端
-FROM node:20-alpine as build
+FROM ${NODE_IMAGE} as build
 WORKDIR /app
+ENV PYTHON=/usr/bin/python3
+
+# sqlite3 在 install 阶段可能触发 node-gyp 编译
+RUN sed -i 's|https://dl-cdn.alpinelinux.org/alpine|https://mirrors.aliyun.com/alpine|g' /etc/apk/repositories && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set registry https://registry.npmmirror.com && \
+    apk add --no-cache \
+    python3 \
+    py3-setuptools \
+    make \
+    g++
 
 # 复制依赖文件
 COPY package*.json ./
@@ -15,11 +29,17 @@ COPY . .
 RUN npm run build
 
 # 阶段 2: 运行 Node.js 服务端
-FROM node:20-alpine
+FROM ${NODE_IMAGE}
+ENV PYTHON=/usr/bin/python3
 
 # 安装构建工具（sqlite3 需要）
-RUN apk add --no-cache \
+RUN sed -i 's|https://dl-cdn.alpinelinux.org/alpine|https://mirrors.aliyun.com/alpine|g' /etc/apk/repositories && \
+    npm config set fetch-retries 5 && \
+    npm config set fetch-retry-maxtimeout 120000 && \
+    npm config set registry https://registry.npmmirror.com && \
+    apk add --no-cache \
     python3 \
+    py3-setuptools \
     make \
     g++
 
