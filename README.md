@@ -94,9 +94,24 @@ data/
 - 不要把 `data/` 中的数据库、上传文件、证书、私钥提交到仓库
 - 生产环境请始终通过环境变量传入自己的密钥和管理员密码
 
-## 2. Docker 镜像的编译与构建
+## 2. Docker 方式运行
 
-### 2.1 构建镜像
+如果你要以 Docker 方式运行本项目，推荐按下面的顺序操作：
+
+1. 先获取 Docker 镜像
+2. 再使用已获取的镜像创建容器
+
+当前 README 主体保留“本地编译镜像并创建容器”的流程说明。
+
+关于“使用公共仓库镜像拉取并创建容器”的临时说明，已分离到本地文件：
+
+- `README-public-image-temp.md`
+
+该文件仅作本地占位说明，不参与 Git 提交。等公共镜像真正上传完成后，再决定是否并回 README 正文。
+
+### 2.1 获取 Docker 镜像
+
+#### 方式：本地编译源码镜像
 
 项目已自带多阶段 `Dockerfile`，默认使用公开基础镜像 `node:20-alpine`：
 
@@ -129,9 +144,7 @@ docker build \
 - `HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`：构建期代理
 - `NPM_FETCH_RETRIES` / `NPM_FETCH_RETRY_MINTIMEOUT` / `NPM_FETCH_RETRY_MAXTIMEOUT` / `NPM_FETCH_TIMEOUT`：安装重试与超时
 
-### 2.2 构建 x86 (`linux/amd64`) 镜像
-
-项目已经补充了 amd64 构建脚本，适合在多平台主机或 CI 中显式产出 x86 镜像：
+如果需要显式构建 x86 `linux/amd64` 镜像，可以执行：
 
 ```bash
 npm run docker:build:amd64
@@ -143,7 +156,7 @@ npm run docker:build:amd64
 docker buildx build --platform linux/amd64 -t navlink-local:amd64 --load .
 ```
 
-### 2.3 启动容器
+### 2.2 使用本地编译镜像创建容器
 
 ```bash
 mkdir -p ./data
@@ -171,9 +184,9 @@ docker run -d \
 - `/var/run/docker.sock:/var/run/docker.sock` 用于启用本机 Docker 管理能力
 - 如果你只管理远程 Docker 主机，可以按需移除 `docker.sock` 挂载
 
-### 2.4 使用 docker compose
+### 2.3 使用 docker compose
 
-仓库内提供了 `docker-compose.yml`。如果你希望直接通过源码构建并启动，可以将服务切换为 `build: .`：
+仓库内提供了 `docker-compose.yml`。如果你使用本地源码构建镜像，配置应类似：
 
 ```yaml
 services:
@@ -199,9 +212,9 @@ services:
 docker compose up -d --build
 ```
 
-### 2.5 升级镜像
+### 2.4 升级镜像
 
-当源码有更新时，重新构建并重启容器即可：
+如果你使用本地源码镜像，升级方式是重新编译并重建容器：
 
 ```bash
 docker build -t navlink-local:latest .
