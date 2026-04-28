@@ -1,6 +1,7 @@
 # NavLink
 
 NavLink 是一个自托管的多模块导航与运维平台，当前包含导航首页、订阅管理、Docker 管理、VPS/SSH 工作台与实时监控等能力。前端基于 React + Vite，后端基于 Express + Socket.IO，运行数据默认落在本地 `data/` 目录，数据库为 SQLite。
+本项目fork自[NavLink](https://github.com/txwebroot/navlinks)，添加了对所有SSH服务器的监控功能，并删除AI板块.
 
 ## 1. 源码运行
 
