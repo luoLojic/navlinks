@@ -2,10 +2,11 @@ version: '3.8'
 
 services:
   navlink:
-    # 使用预构建镜像（推荐）
-    image: ghcr.io/txwebroot/navlinks:latest
-    # 如需本地构建，取消下行注释并注释上面的 image
+    # 默认使用已发布的 GitHub Container Registry x86 镜像
+    image: ghcr.io/luolojic/navlinks:amd64
+    # 如需本地构建，可改为：
     # build: .
+    # image: navlink-local:latest
     container_name: navlink
     ports:
       - "8088:80"

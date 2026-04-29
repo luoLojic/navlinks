@@ -96,22 +96,29 @@ data/
 
 ## 2. Docker 方式运行
 
-如果你要以 Docker 方式运行本项目，推荐按下面的顺序操作：
+Docker 部署可以拆成两步：
 
-1. 先获取 Docker 镜像
-2. 再使用已获取的镜像创建容器
+1. 获取镜像：拉取公共镜像，或本地编译镜像
+2. 部署服务：使用 `docker run` 容器，或使用 `docker compose`
 
-当前 README 主体保留“本地编译镜像并创建容器”的流程说明。
+### 2.1 方式一：拉取公共 Docker 镜像
 
-关于“使用公共仓库镜像拉取并创建容器”的临时说明，已分离到本地文件：
+当前已发布的公共镜像：
 
-- `README-public-image-temp.md`
+- `ghcr.io/luolojic/navlinks:amd64`
 
-该文件仅作本地占位说明，不参与 Git 提交。等公共镜像真正上传完成后，再决定是否并回 README 正文。
+拉取命令：
 
-### 2.1 获取 Docker 镜像
+```bash
+docker pull ghcr.io/luolojic/navlinks:amd64
+```
 
-#### 方式：本地编译源码镜像
+说明：
+
+- 当前公开标签为 `amd64`，面向 `linux/amd64` / x86_64 环境
+- 如果你的宿主机不是 x86_64，建议改用下面的“本地编译镜像”方式自行构建
+
+### 2.2 方式二：本地编译 Docker 镜像
 
 项目已自带多阶段 `Dockerfile`，默认使用公开基础镜像 `node:20-alpine`：
 
@@ -156,11 +163,33 @@ npm run docker:build:amd64
 docker buildx build --platform linux/amd64 -t navlink-local:amd64 --load .
 ```
 
-### 2.2 使用本地编译镜像创建容器
+### 2.3 使用 `docker run` 部署容器
+
+先准备数据目录：
 
 ```bash
 mkdir -p ./data
+```
 
+#### 方式 A：使用已拉取的公共镜像
+
+```bash
+docker run -d \
+  --name navlink \
+  -p 8088:80 \
+  -v "$(pwd)"/data:/app/data \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -e PORT=80 \
+  -e NODE_ENV=production \
+  -e JWT_SECRET='<replace-with-a-random-secret>' \
+  -e ADMIN_PASSWORD='<set-your-admin-password>' \
+  --restart always \
+  ghcr.io/luolojic/navlinks:amd64
+```
+
+#### 方式 B：使用本地编译镜像
+
+```bash
 docker run -d \
   --name navlink-local \
   -p 8088:80 \
@@ -184,26 +213,32 @@ docker run -d \
 - `/var/run/docker.sock:/var/run/docker.sock` 用于启用本机 Docker 管理能力
 - 如果你只管理远程 Docker 主机，可以按需移除 `docker.sock` 挂载
 
-### 2.3 使用 docker compose
+### 2.4 使用 `docker compose` 部署服务
 
-仓库内提供了 `docker-compose.yml`。如果你使用本地源码构建镜像，配置应类似：
+仓库内提供了 `docker-compose.yml`。
+
+#### 方式 A：使用公共镜像
+
+默认配置已经指向：
+
+- `ghcr.io/luolojic/navlinks:amd64`
+
+直接执行：
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+#### 方式 B：使用本地编译镜像
+
+把 [docker-compose.yml](/opt/navlinks/docker-compose.yml) 中的服务改成使用本地构建：
 
 ```yaml
 services:
   navlink:
     build: .
-    container_name: navlink
-    ports:
-      - "8088:80"
-    volumes:
-      - ./data:/app/data
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      - PORT=80
-      - NODE_ENV=production
-      - JWT_SECRET=<replace-with-a-random-secret>
-      - ADMIN_PASSWORD=<set-your-admin-password>
-    restart: always
+    image: navlink-local:latest
 ```
 
 然后执行：
@@ -212,15 +247,22 @@ services:
 docker compose up -d --build
 ```
 
-### 2.4 升级镜像
+### 2.5 Docker 升级方式
 
-如果你使用本地源码镜像，升级方式是重新编译并重建容器：
+如果你使用公共镜像，升级方式是重新拉取并重建：
 
 ```bash
-docker build -t navlink-local:latest .
-docker rm -f navlink-local
+docker compose pull
+docker compose up -d
+```
+
+或使用 `docker run` 方式重建容器：
+
+```bash
+docker pull ghcr.io/luolojic/navlinks:amd64
+docker rm -f navlink
 docker run -d \
-  --name navlink-local \
+  --name navlink \
   -p 8088:80 \
   -v "$(pwd)"/data:/app/data \
   -v /var/run/docker.sock:/var/run/docker.sock \
@@ -229,7 +271,14 @@ docker run -d \
   -e JWT_SECRET='<replace-with-a-random-secret>' \
   -e ADMIN_PASSWORD='<set-your-admin-password>' \
   --restart always \
-  navlink-local:latest
+  ghcr.io/luolojic/navlinks:amd64
+```
+
+如果你使用本地源码镜像，升级方式是重新编译并重建：
+
+```bash
+docker build -t navlink-local:latest .
+docker compose up -d --build
 ```
 
 ## 3. 项目功能介绍
